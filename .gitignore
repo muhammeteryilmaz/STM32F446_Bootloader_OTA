@@ -1,0 +1,20 @@
+# STM32CubeIDE workspace metadata
+.metadata/
+
+# Build output
+Debug/
+Release/
+
+# Build artifacts
+*.elf
+*.map
+*.o
+*.d
+*.hex
+*.bin
+
+# STM32CubeIDE generated debug files
+*.launch
+
+# OS files
+.DS_Store
