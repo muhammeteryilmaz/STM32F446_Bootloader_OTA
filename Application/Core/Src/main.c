@@ -24,7 +24,6 @@
 #include "flash_layout.h"
 #include "app_header.h"
 #include "app_ota.h"
-#include "ota_image.h"
 #include <string.h>
 /* USER CODE END Includes */
 
@@ -44,7 +43,6 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-UART_HandleTypeDef huart4;
 
 /* USER CODE BEGIN PV */
 
@@ -53,12 +51,8 @@ UART_HandleTypeDef huart4;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
-static void MX_UART4_Init(void);
 /* USER CODE BEGIN PFP */
 
-uint8_t setTCmd[6] = {0xC0, 0x00, 0x10, 0x1A, 0x07, 0x44}; // details to be shared.
-
-GPIO_PinState auxStateT;
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -73,68 +67,12 @@ __attribute__((section(".header"))) const app_header_t app_header =
 		.version = 0
 };
 
-void SendImage(uint8_t *data, uint32_t size)
-{
 
-    auxStateT = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_5);
-    if (auxStateT == GPIO_PIN_RESET) {
-    	HAL_UART_Transmit(&huart4, data, size, 100);
-    }
-}
-
-void SendImageSize(uint32_t size)
-{
-    auxStateT = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_5);
-    if (auxStateT == GPIO_PIN_RESET) {
-    	HAL_UART_Transmit(&huart4, (uint8_t *)&size, sizeof(size), 100);
-    }
-}
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-    uint32_t remaining = (uint32_t)ota_image_bin_len;
-    uint8_t txData[32];
-    uint32_t cursor = 0;
-
-    SendImageSize(ota_image_bin_len);
-
-    while (remaining)
-    {
-        uint32_t len = (remaining > sizeof(txData)) ? sizeof(txData) : remaining;
-
-        memcpy(txData, &ota_image_bin[cursor], len);
-        cursor += len;
-
-        SendImage(txData, len);
-        remaining -= len;
-
-        HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
-
-    }
-
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_7, GPIO_PIN_SET);
 	enable_ota_request();
-}
-
-void SleepTMs(void){
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_11, GPIO_PIN_SET);
-	HAL_Delay(50);
-}
-
-void WakeUpTMs(void){
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_11, GPIO_PIN_RESET);
-	HAL_Delay(50);
-}
-
-void SetTModuleParameters(void)
-{
-
-    auxStateT = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_5);
-    if (auxStateT == GPIO_PIN_RESET) {
-        HAL_UART_Transmit(&huart4, setTCmd, 6, 100);
-        HAL_Delay(50);
-    }
 }
 
 
@@ -170,13 +108,8 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_UART4_Init();
-
-
   /* USER CODE BEGIN 2 */
-  SleepTMs();
-  SetTModuleParameters();
-  WakeUpTMs();
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -240,39 +173,6 @@ void SystemClock_Config(void)
 }
 
 /**
-  * @brief UART4 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_UART4_Init(void)
-{
-
-  /* USER CODE BEGIN UART4_Init 0 */
-
-  /* USER CODE END UART4_Init 0 */
-
-  /* USER CODE BEGIN UART4_Init 1 */
-
-  /* USER CODE END UART4_Init 1 */
-  huart4.Instance = UART4;
-  huart4.Init.BaudRate = 9600;
-  huart4.Init.WordLength = UART_WORDLENGTH_8B;
-  huart4.Init.StopBits = UART_STOPBITS_1;
-  huart4.Init.Parity = UART_PARITY_NONE;
-  huart4.Init.Mode = UART_MODE_TX_RX;
-  huart4.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart4.Init.OverSampling = UART_OVERSAMPLING_16;
-  if (HAL_UART_Init(&huart4) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN UART4_Init 2 */
-
-  /* USER CODE END UART4_Init 2 */
-
-}
-
-/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -286,14 +186,10 @@ static void MX_GPIO_Init(void)
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOC_CLK_ENABLE();
-  __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
-
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0|GPIO_PIN_10|GPIO_PIN_11, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0|GPIO_PIN_7, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : PC13 */
   GPIO_InitStruct.Pin = GPIO_PIN_13;
@@ -301,15 +197,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : PA5 */
-  GPIO_InitStruct.Pin = GPIO_PIN_5;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : PB0 PB10 PB11 */
-  GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_10|GPIO_PIN_11;
+  /*Configure GPIO pins : PB0 PB7 */
+  GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_7;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;

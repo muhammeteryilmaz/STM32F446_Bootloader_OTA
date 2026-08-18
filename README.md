@@ -1,25 +1,58 @@
 # STM32F446 Bootloader OTA
 
-Custom bootloader project for **STM32F446ZET6** implementing firmware update over **LoRa**.
+Custom bootloader project for **STM32F446ZET6** implementing firmware updates over **LoRa**.
+
+The project is designed to update the application firmware stored in the STM32 internal Flash without requiring an external programmer during the OTA update process.
+
+---
 
 ## Project Status
 
-**Progress: 50%**
+**Progress: ~60%**
 
-The bootloader structure, application separation, OTA request mechanism, LoRa communication and firmware transfer infrastructure have been implemented.
+The core bootloader architecture, application separation, OTA request mechanism, firmware image generation, Flash programming infrastructure and firmware validation infrastructure have been implemented.
 
-The remaining work is mainly focused on reliably reconstructing the received firmware image, writing it to Flash, validating it and starting the new application.
+The current development focus is the communication layer between the STM32 bootloader and an external ESP32 gateway, and the reliable transfer of the firmware image over LoRa.
 
 ---
 
 ## Project Architecture
 
-The project consists of two separate firmware applications:
+The system consists of three main components:
 
-- **Bootloader** — Handles OTA requests, firmware reception, Flash operations, application validation and application startup.
-- **Application** — Runs the main application and can request a firmware update through LoRa.
+- **STM32 Bootloader** — Receives the firmware image, reconstructs it in RAM, validates it, programs the application Flash region and starts the application.
+- **STM32 Application** — Runs the main firmware and can request an OTA update.
+- **ESP32 OTA Gateway** — Receives the firmware image from a PC and transfers it to the STM32 bootloader through LoRa.
 
-### Flash Memory Layout
+### System Architecture
+
+    PC
+     │
+     │ Firmware Image
+     ▼
+    ESP32
+     │
+     │ UART
+     ▼
+    LoRa Module
+     │
+     │ LoRa
+     ▼
+    LoRa Module
+     │
+     │ UART
+     ▼
+    STM32F446
+     │
+     ├── Bootloader
+     │
+     └── Application
+
+---
+
+## Flash Memory Layout
+
+The STM32 Flash memory is divided into separate regions for the bootloader and application.
 
     STM32F446 Flash
 
@@ -37,238 +70,170 @@ The current application start address is:
 
     0x0800C000
 
+The bootloader occupies the Flash region before the application start address.
+
 ---
 
 ## OTA Update Flow
 
+The intended OTA process is:
+
+    Running Application
+            │
+            │ OTA Request
+            ▼
+        Store OTA Flag
+            │
+            ▼
+          Reset
+            │
+            ▼
+        Bootloader
+            │
+            │ Check OTA Flag
+            ▼
+       Request Firmware
+            │
+            ▼
+          ESP32
+            │
+            │ Firmware Image
+            ▼
+        LoRa Transfer
+            │
+            ▼
+       STM32 Bootloader
+            │
+            ▼
+      Receive Image Size
+            │
+            ▼
+      Receive Image Chunks
+            │
+            ▼
+       Reconstruct Image
+            │
+            ▼
+       Validate Firmware
+            │
+            ▼
+     Erase Application Flash
+            │
+            ▼
+      Write New Firmware
+            │
+            ▼
+       Verify Firmware
+            │
+            ▼
+       Reset / Jump
+            │
+            ▼
+       New Application
+
+---
+
+## OTA Communication Protocol
+
+The current communication protocol uses a simple ACK-based transfer mechanism.
+
+### 1. OTA Request
+
+The STM32 application sets the OTA request flag and resets the MCU.
+
+After reset:
+
     Application
-         │
-         │ OTA Request
-         ▼
-        Reset
-         │
-         ▼
+        │
+        │ OTA Flag
+        ▼
     Bootloader
-         │
-         │ Start LoRa
-         ▼
-    Receive Firmware
-         │
-         ▼
-    Reconstruct Image
-         │
-         ▼
-    Erase Application Flash
-         │
-         ▼
-    Write New Firmware
-         │
-         ▼
-    Verify Firmware
-         │
-         ▼
-    Reset / Jump
-         │
-         ▼
-    New Application
+        │
+        │ OTA Request
+        ▼
+      ESP32
+
+The ESP32 waits for the OTA request before starting the firmware transfer.
 
 ---
 
-## LoRa Communication
+### 2. Firmware Size
 
-The current communication architecture is:
+The ESP32 first sends the firmware image size.
 
-    Application STM32
-           │
-          UART
-           │
-           ▼
-        LoRa TX
-           │
-           │ LoRa
-           ▼
-        LoRa RX
-           │
-          UART
-           │
-           ▼
-    Bootloader STM32
+    ESP32
+       │
+       │ Image Size (uint32_t)
+       ▼
+    STM32 Bootloader
+       │
+       │ Validate Size
+       ▼
+    ACK / NACK
 
-The application sends:
-
-1. Firmware image size
-2. Firmware image data in chunks
-3. OTA request
-
-The bootloader receives the firmware and reconstructs the image before programming the application Flash.
+The STM32 checks that the received image size is within the allowed OTA image buffer size.
 
 ---
 
-## Application Header
+### 3. Firmware Transfer
 
-The bootloader uses an application header to store information about the firmware:
+The firmware image is transferred in small chunks.
 
-    typedef struct
-    {
-        uint32_t ota_flag;
-        uint32_t magic;
-        uint32_t size;
-        uint32_t crc;
-        uint32_t version;
-    } app_header_t;
+Current chunk size:
 
-The header is used by the bootloader to determine the state and validity of the application.
+    32 bytes
 
----
+Example:
 
-## Flash Programming
+    ESP32
+       │
+       │ Chunk 0
+       ▼
+    STM32
+       │
+       │ ACK
+       ▼
+    ESP32
+       │
+       │ Chunk 1
+       ▼
+    STM32
+       │
+       │ ACK
+       ▼
+      ...
 
-The bootloader contains functionality for:
-
-- Flash unlock
-- Flash erase
-- Flash programming
-- Application header programming
-- Flash lock
-- Application validation
-
-The intended update sequence is:
-
-    Receive Firmware
-           ↓
-    Erase Application Region
-           ↓
-    Write Firmware
-           ↓
-    Calculate / Verify CRC
-           ↓
-    Write Application Header
-           ↓
-    Reset MCU
-           ↓
-    Bootloader Validates Application
-           ↓
-    Jump to Application
+The STM32 stores the received data in RAM before Flash programming.
 
 ---
 
-## Current Implementation
+## Firmware Image Format
 
-### Bootloader
+The firmware image is generated from the application binary.
 
-- [x] Bootloader project
-- [x] Application memory separation
-- [x] Application start address
-- [x] Bootloader → Application jump
-- [x] Application header
-- [x] OTA flag mechanism
-- [x] Flash unlock / erase / write
-- [x] Application validation infrastructure
-- [x] CRC infrastructure
-- [x] LoRa UART configuration
-- [x] LoRa module configuration
-- [x] Firmware size reception
-- [x] Firmware image reception
-- [ ] Reliable firmware reconstruction
-- [ ] Write received image to application Flash
-- [ ] Final CRC verification
-- [ ] Complete OTA update cycle
+The current image generation process is:
 
-### Application
+    application.bin
+          │
+          ▼
+      Add Header
+          │
+          ▼
+      ota_image.bin
+          │
+          ▼
+        bin2c
+          │
+          ▼
+      ota_image.h
 
-- [x] Normal application execution
-- [x] OTA request mechanism
-- [x] Firmware image generation
-- [x] Firmware size transmission
-- [x] Firmware transmission over LoRa
-- [x] OTA flag update
-- [x] MCU reset
+The firmware header currently contains:
 
----
-
-## Current Development Stage
-
-The current development focus is the firmware image received through LoRa.
-
-The firmware can be transmitted and received in chunks. The remaining work is to reliably reconstruct the complete firmware image and program it into the application Flash region without data corruption.
-
-The immediate target is:
-
-    LoRa Image
-        ↓
-    Receive
-        ↓
-    Reconstruct
-        ↓
-    Flash Write
-        ↓
-    CRC Check
-        ↓
-    Application Header
-        ↓
-    Reset
-        ↓
-    New Application
-
----
-
-## Final Goal
-
-The final goal is a fully functional OTA bootloader for STM32F446 capable of receiving and installing a new firmware image over LoRa without requiring an external programmer.
-
-    New Firmware
-         │
-         ▼
-       LoRa TX
-         │
-         ▼
-       LoRa RX
-         │
-         ▼
-     Bootloader
-         │
-         ▼
-       Flash
-         │
-         ▼
-     Validation
-         │
-         ▼
-    New Application
-
----
-
-## Hardware
-
-- STM32F446ZET6
-- LoRa modules
-- UART communication
-
-## Development Tools
-
-- STM32CubeIDE
-- STM32CubeProgrammer
-- ARM GCC Toolchain
-
-## Technologies
-
-- C
-- STM32F446
-- STM32 HAL
-- UART
-- LoRa
-- Flash Programming
-- CRC32
-- Bootloader
-- OTA Firmware Update
-- ARM Cortex-M4
-
----
-
-## Project Status
-
-**50% Complete**
-
-Bootloader and OTA communication infrastructure are implemented.
-
-The remaining work is focused on reliable firmware reconstruction, Flash programming, firmware validation and completing the end-to-end OTA update process.
+```c
+typedef struct
+{
+    uint32_t magic;
+    uint32_t size;
+    uint32_t crc;
+    uint32_t version;
+} app_header_t;
