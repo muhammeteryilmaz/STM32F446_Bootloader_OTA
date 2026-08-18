@@ -145,6 +145,30 @@ void SendEnableOTA(void)
 	HAL_UART_Transmit(&huart5, &ack, 1, 1000);
 }
 
+GPIO_PinState IsAUXReady(void){
+	return HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_6);
+}
+
+HAL_StatusTypeDef WaitAUXReady(void)
+{
+	uint32_t timeout = HAL_GetTick() + 500;
+	while (!IsAUXReady())
+	{
+		if (HAL_GetTick() > timeout)
+			return HAL_TIMEOUT;
+	}
+	return HAL_OK;
+}
+
+void CheckTimeout(HAL_StatusTypeDef status)
+{
+	if(status == HAL_TIMEOUT)
+		while(1)
+		{
+			HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_14);
+			HAL_Delay(1000);
+		}
+}
 
 /* USER CODE END 0 */
 
@@ -179,42 +203,53 @@ int main(void)
   MX_GPIO_Init();
   MX_UART5_Init();
   /* USER CODE BEGIN 2 */
-  //SleepRMs();
-  //SetRModuleParameters();
-  //WakeUpRMs();
+  SleepRMs();
+  SetRModuleParameters();
+  WakeUpRMs();
 
-  HAL_Delay(100);
-
-
-  while (1)
+/*  while (1)
   {
       uint8_t test = 0x55;
 
-      HAL_StatusTypeDef status=  HAL_UART_Transmit(
-          &huart5,
-          &test,
-          1,
-          1000
-      );
-      if (status == HAL_OK)
-    	  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_14);
-      HAL_Delay(1000);
-  }
+      while (IsAUXReady())
+      {
+		  HAL_StatusTypeDef status=  HAL_UART_Transmit(
+			  &huart5,
+			  &test,
+			  1,
+			  1000
+		  );
+		  if (status == HAL_OK)
+			  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_14);
+		  HAL_Delay(1000);
+      }
+  }*/
 
 
 
   if (check_ota_request() == 0)
   {
+
+	  CheckTimeout(WaitAUXReady());
 	  SendEnableOTA();
 
-	  ReceiveImageSize();
+	  while (image_size == 0)
+	  {
+		 CheckTimeout(WaitAUXReady());
+		 ReceiveImageSize();
+	  }
+
 
 	  if (image_size == 0 || image_size > OTA_MAX_SIZE)
 	  {
+
+		  CheckTimeout(WaitAUXReady());
 		  SendImageSizeNACK();
+
 		  while (1)
 		  {
 			  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_14);
+			  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
 			  HAL_Delay(500);
 
 		  }
@@ -223,10 +258,8 @@ int main(void)
 	  ota_image_bin_len = image_size;
 	  received = 0;
 
+	  CheckTimeout(WaitAUXReady());
 	  SendImageSizeACK();
-
-	  HAL_Delay(100);
-
 
 	  //if flash memory almost full, these algorithm could be problem.
 
@@ -236,16 +269,17 @@ int main(void)
 
 		  uint32_t len = (remaining > sizeof(image)) ? sizeof(image) : remaining;
 
+		  CheckTimeout(WaitAUXReady());
 		  ReceiveImage(len);
 
 		  memcpy(&ota_image_bin[received], image, len);
 
 		  received += len;
 
+		  CheckTimeout(WaitAUXReady());
 		  SendChunkACK();
-	  }
 
-	  HAL_Delay(100);
+	  }
 
 	  ota_stream_t stream =
 	  {
@@ -286,9 +320,9 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_14);
-	  HAL_Delay(500);
 
+	  	HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_14);
+		HAL_Delay(1000);
   }
   /* USER CODE END 3 */
 }
@@ -387,9 +421,6 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_RESET);
-
-  /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOE, GPIO_PIN_14|GPIO_PIN_15, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
@@ -397,9 +428,8 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pin : PA6 */
   GPIO_InitStruct.Pin = GPIO_PIN_6;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pins : PE14 PE15 */
