@@ -1,14 +1,23 @@
 # STM32F446 Bootloader OTA
 
+!!! WARNING: ota_image_bin buffer size is fixed at compile-time (OTA_MAX_SIZE). Increasing this to support larger images directly increases static RAM usage, which may not be feasible given limited SRAM. Consider streaming chunks directly to flash instead of buffering the whole image in RAM.
+
+You can find the relevant Python code for generating ota_image.bin in the application/debug/app_final.py file.
+
+You can also use the resources in Parts 1–2–3–4–5 of the **https://controllerstech.com/stm32-custom-bootloader-tutorial/** to better understand the project.
+
+I used bootloader_comm.ino code for ESP32.
+
 Custom bootloader project for **STM32F446ZET6** implementing firmware updates over **LoRa**.
 
 The project is designed to update the application firmware stored in the STM32 internal Flash without requiring an external programmer during the OTA update process.
+
 
 ---
 
 ## Project Status
 
-**Progress: ~60%**
+**Progress: ~99%**
 
 The core bootloader architecture, application separation, OTA request mechanism, firmware image generation, Flash programming infrastructure and firmware validation infrastructure have been implemented.
 
@@ -364,109 +373,6 @@ The intended update sequence is:
 
 ---
 
-## Current Implementation
-
-### STM32 Bootloader
-
-- [x] Bootloader project
-- [x] Application memory separation
-- [x] Application start address
-- [x] Bootloader → Application jump
-- [x] Application header
-- [x] OTA flag mechanism
-- [x] Flash unlock
-- [x] Flash erase
-- [x] Flash write infrastructure
-- [x] Flash lock
-- [x] Application validation infrastructure
-- [x] CRC32 infrastructure
-- [x] UART / LoRa interface
-- [x] LoRa module configuration
-- [x] OTA request detection
-- [x] Firmware size reception
-- [x] Firmware size validation
-- [x] Firmware chunk reception
-- [x] RAM firmware buffer
-- [x] Image reconstruction infrastructure
-- [x] Image size ACK
-- [x] Chunk ACK
-- [ ] Reliable LoRa communication
-- [ ] Reliable chunk retransmission
-- [ ] Complete RAM image validation
-- [ ] Complete Flash programming flow
-- [ ] Final CRC verification
-- [ ] Complete end-to-end OTA cycle
-
-### STM32 Application
-
-- [x] Normal application execution
-- [x] OTA request mechanism
-- [x] OTA flag update
-- [x] MCU reset
-- [x] Firmware image generation
-- [x] Firmware size generation
-- [x] Firmware image transmission infrastructure
-- [x] Chunk-based firmware transmission
-
-### ESP32 OTA Gateway
-
-- [x] ESP32 firmware
-- [x] PC → ESP32 firmware upload
-- [x] Binary firmware storage
-- [x] LittleFS integration
-- [x] Firmware size detection
-- [x] Chunk-based firmware transmission infrastructure
-- [x] ACK-based transfer infrastructure
-- [ ] Reliable LoRa communication
-- [ ] Complete STM32 ↔ ESP32 OTA handshake
-- [ ] Retry / retransmission mechanism
-- [ ] Complete end-to-end firmware transfer
-
----
-
-## Current Development Stage
-
-The current development stage focuses on establishing a reliable communication channel between the ESP32 OTA gateway and the STM32 bootloader through the E32-900T20D LoRa modules.
-
-The current target is:
-
-    PC
-     │
-     ▼
-    ota_image.bin
-     │
-     ▼
-    ESP32
-     │
-     ▼
-    LoRa
-     │
-     ▼
-    STM32 Bootloader
-     │
-     ▼
-    RAM
-     │
-     ▼
-    Flash
-     │
-     ▼
-    CRC Validation
-     │
-     ▼
-    Application
-
-The firmware transfer protocol currently uses:
-
-- Firmware size
-- 32-byte chunks
-- ACK responses
-- RAM-based image reconstruction
-
-Reliable LoRa communication and retransmission are still under development.
-
----
-
 ## Final Goal
 
 The final goal is a fully functional OTA bootloader for STM32F446 capable of receiving and installing a new firmware image over LoRa without requiring an external programmer.
@@ -504,7 +410,7 @@ The bootloader will remain protected from application updates while only the app
 ## Hardware
 
 - STM32F446ZET6
-- ESP32
+- ESP32 DEVKIT V1
 - E32-900T20D LoRa modules
 - UART interfaces
 - STM32 internal Flash
@@ -539,11 +445,3 @@ The bootloader will remain protected from application updates while only the app
 - LittleFS
 
 ---
-
-## Project Status
-
-**~60% Complete**
-
-The fundamental bootloader architecture and OTA infrastructure are implemented.
-
-The current focus is establishing reliable LoRa communication between the ESP32 OTA gateway and the STM32 bootloader, followed by reliable firmware reconstruction, Flash programming, CRC validation and completion of the end-to-end OTA update process.

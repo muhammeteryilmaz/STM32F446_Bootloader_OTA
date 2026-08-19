@@ -110,41 +110,6 @@ void SetRModuleParameters(void) {
     }
 }
 
-void ReceiveImage(uint32_t size)
-{
-	HAL_UART_Receive(&huart5, image, size, 100);
-}
-
-void ReceiveImageSize()
-{
-	HAL_UART_Receive(&huart5, (uint8_t*)&image_size, sizeof(image_size), 100);
-
-}
-
-void SendImageSizeNACK(void)
-{
-	uint8_t nack = 0x00;
-	HAL_UART_Transmit(&huart5, &nack, 1, 100);
-}
-
-void SendImageSizeACK(void)
-{
-	uint8_t ack = 0x01;
-	HAL_UART_Transmit(&huart5, &ack, 1, 100);
-}
-
-void SendChunkACK(void)
-{
-	uint8_t ack = 0x01;
-	HAL_UART_Transmit(&huart5, &ack, 1, 100);
-}
-
-void SendEnableOTA(void)
-{
-	uint8_t ack = 0x01;
-	HAL_UART_Transmit(&huart5, &ack, 1, 1000);
-}
-
 GPIO_PinState IsAUXReady(void){
 	return HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_6);
 }
@@ -168,6 +133,232 @@ void CheckTimeout(HAL_StatusTypeDef status)
 			HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_14);
 			HAL_Delay(1000);
 		}
+}
+
+void SendImageSizeNACK(void)
+{
+	uint8_t nack = 0x00;
+
+	CheckTimeout(WaitAUXReady());
+	HAL_StatusTypeDef status = (HAL_UART_Transmit(&huart5, &nack, 1, 200));
+
+	while (status != HAL_OK)
+	{
+		if (status == HAL_TIMEOUT)
+		{
+			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_SET);
+
+			CheckTimeout(WaitAUXReady());
+			status = HAL_UART_Transmit(&huart5, &nack, 1, 200);
+
+		}
+		// HAL_ERROR and HAL_BUSY for debug.
+		else if (status == HAL_ERROR){
+
+			  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_14);
+			  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
+			  HAL_Delay(100);
+
+
+		}
+		else if (status == HAL_BUSY){
+
+			  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_14);
+			  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
+			  HAL_Delay(2000);
+
+		}
+	}
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_RESET);
+}
+
+void SendImageSizeACK(void)
+{
+	uint8_t ack = 0x01;
+
+	CheckTimeout(WaitAUXReady());
+	HAL_StatusTypeDef status = HAL_UART_Transmit(&huart5, &ack, 1, 200);
+
+	while (status != HAL_OK)
+	{
+		if (status == HAL_TIMEOUT)
+		{
+			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_SET);
+
+			CheckTimeout(WaitAUXReady());
+			status = HAL_UART_Transmit(&huart5, &ack, 1, 200);
+
+		}
+		// HAL_ERROR and HAL_BUSY for debug.
+		else if (status == HAL_ERROR){
+
+			  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_14);
+			  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
+			  HAL_Delay(100);
+
+
+		}
+		else if (status == HAL_BUSY){
+
+			  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_14);
+			  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
+			  HAL_Delay(2000);
+
+		}
+	}
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_RESET);
+}
+
+void SendChunkACK(void)
+{
+	uint8_t ack = 0x01;
+
+	CheckTimeout(WaitAUXReady());
+	HAL_StatusTypeDef status = HAL_UART_Transmit(&huart5, &ack, 1, 200);
+
+	while (status != HAL_OK)
+	{
+		if (status == HAL_TIMEOUT)
+		{
+			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_SET);
+
+			CheckTimeout(WaitAUXReady());
+			status = HAL_UART_Transmit(&huart5, &ack, 1, 200);
+
+		}
+		// HAL_ERROR and HAL_BUSY for debug.
+		else if (status == HAL_ERROR){
+
+			  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_14);
+			  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
+			  HAL_Delay(100);
+
+
+		}
+		else if (status == HAL_BUSY){
+
+			  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_14);
+			  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
+			  HAL_Delay(2000);
+
+		}
+	}
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_RESET);
+}
+
+void SendEnableOTA(void)
+{
+	uint8_t ack = 0x01;
+
+	CheckTimeout(WaitAUXReady());
+	HAL_StatusTypeDef status = (HAL_UART_Transmit(&huart5, &ack, 1, 1000));
+
+	while (status != HAL_OK)
+	{
+		if (status == HAL_TIMEOUT)
+		{
+			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_SET);
+
+			CheckTimeout(WaitAUXReady());
+			status = HAL_UART_Transmit(&huart5, &ack, 1, 1000);
+
+		}
+		// HAL_ERROR and HAL_BUSY for debug.
+		else if (status == HAL_ERROR){
+
+			  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_14);
+			  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
+			  HAL_Delay(100);
+
+
+		}
+		else if (status == HAL_BUSY){
+
+			  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_14);
+			  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
+			  HAL_Delay(2000);
+		}
+	}
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_RESET);
+}
+
+
+void ReceiveImage(uint32_t size)
+{
+
+	CheckTimeout(WaitAUXReady());
+	HAL_StatusTypeDef status = (HAL_UART_Receive(&huart5, image, size, 200));
+
+	while (status != HAL_OK)
+	{
+		if (status == HAL_TIMEOUT)
+		{
+			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_SET);
+
+			CheckTimeout(WaitAUXReady());
+			status = HAL_UART_Receive(&huart5, image, size, 200);
+
+		}
+		// HAL_ERROR and HAL_BUSY for debug.
+		else if (status == HAL_ERROR){
+
+			  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_14);
+			  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
+			  HAL_Delay(100);
+
+
+		}
+		else if (status == HAL_BUSY){
+
+			  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_14);
+			  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
+			  HAL_Delay(2000);
+
+		}
+	}
+
+	SendChunkACK();
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_RESET);
+
+}
+
+void ReceiveImageSize()
+{
+
+	CheckTimeout(WaitAUXReady());
+	HAL_StatusTypeDef status = (HAL_UART_Receive(&huart5, (uint8_t*)&image_size, sizeof(image_size), 200));
+
+	while (status != HAL_OK)
+	{
+		if (status == HAL_TIMEOUT)
+		{
+			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_SET);
+
+			CheckTimeout(WaitAUXReady());
+			status = HAL_UART_Receive(&huart5, (uint8_t*)&image_size, sizeof(image_size), 200);
+
+		}
+		// HAL_ERROR and HAL_BUSY for debug.
+		else if (status == HAL_ERROR){
+
+			  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_14);
+			  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
+			  HAL_Delay(100);
+
+
+		}
+		else if (status == HAL_BUSY){
+
+			  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_14);
+			  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
+			  HAL_Delay(2000);
+
+		}
+	}
+
+	SendImageSizeACK();
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_RESET);
+
 }
 
 /* USER CODE END 0 */
@@ -203,47 +394,24 @@ int main(void)
   MX_GPIO_Init();
   MX_UART5_Init();
   /* USER CODE BEGIN 2 */
-  SleepRMs();
-  SetRModuleParameters();
-  WakeUpRMs();
-
-/*  while (1)
-  {
-      uint8_t test = 0x55;
-
-      while (IsAUXReady())
-      {
-		  HAL_StatusTypeDef status=  HAL_UART_Transmit(
-			  &huart5,
-			  &test,
-			  1,
-			  1000
-		  );
-		  if (status == HAL_OK)
-			  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_14);
-		  HAL_Delay(1000);
-      }
-  }*/
-
+  SleepRMs(); // LoRa Sleep Mode
+  SetRModuleParameters(); // send command parameters into LoRa
+  WakeUpRMs(); // Wake Up Mode
 
 
   if (check_ota_request() == 0)
   {
 
-	  CheckTimeout(WaitAUXReady());
 	  SendEnableOTA();
 
 	  while (image_size == 0)
 	  {
-		 CheckTimeout(WaitAUXReady());
 		 ReceiveImageSize();
 	  }
-
 
 	  if (image_size == 0 || image_size > OTA_MAX_SIZE)
 	  {
 
-		  CheckTimeout(WaitAUXReady());
 		  SendImageSizeNACK();
 
 		  while (1)
@@ -258,27 +426,17 @@ int main(void)
 	  ota_image_bin_len = image_size;
 	  received = 0;
 
-	  CheckTimeout(WaitAUXReady());
-	  SendImageSizeACK();
-
-	  //if flash memory almost full, these algorithm could be problem.
-
 	  while(received < image_size)
 	  {
 		  remaining = image_size - received;
 
 		  uint32_t len = (remaining > sizeof(image)) ? sizeof(image) : remaining;
 
-		  CheckTimeout(WaitAUXReady());
 		  ReceiveImage(len);
 
 		  memcpy(&ota_image_bin[received], image, len);
 
 		  received += len;
-
-		  CheckTimeout(WaitAUXReady());
-		  SendChunkACK();
-
 	  }
 
 	  ota_stream_t stream =

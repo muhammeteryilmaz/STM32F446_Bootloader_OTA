@@ -68,7 +68,6 @@ __attribute__((section(".header"))) const app_header_t app_header =
 };
 
 
-
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_7, GPIO_PIN_SET);
@@ -120,7 +119,7 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 	  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_0);
-	  HAL_Delay(2000);
+	  HAL_Delay(500);
   }
   /* USER CODE END 3 */
 }
