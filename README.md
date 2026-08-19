@@ -1,4 +1,4 @@
-# STM32F446 Bootloader OTA
+# STM32F446 Bootloader OTA with LoRa
 
 !!! WARNING: ota_image_bin buffer size is fixed at compile-time (OTA_MAX_SIZE). Increasing this to support larger images directly increases static RAM usage, which may not be feasible given limited SRAM. Consider streaming chunks directly to flash instead of buffering the whole image in RAM.
 
